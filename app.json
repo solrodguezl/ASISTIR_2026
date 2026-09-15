@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mi-primera-app",
-    "slug": "mi-primera-app",
+    "name": "DATAFRO",
+    "slug": "datafro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "miprimeraapp",
+    "scheme": "datafro",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

@@ -1,18 +1,40 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+
+import { AuthProvider } from '@/context/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: '#666666',
+          }}
+          edges={['top', 'bottom']}
+        >
+
+
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              headerBackTitle: 'Atrás',
+              headerTintColor: '#111111',
+              contentStyle: {
+                backgroundColor: '#ffffff',
+              },
+            }}
+          />
+        </SafeAreaView>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
