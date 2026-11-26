@@ -17,7 +17,7 @@ export default function RootLayout() {
         <SafeAreaView
           style={{
             flex: 1,
-            backgroundColor: '#666666',
+            backgroundColor: '#ffffff',
           }}
           edges={['top', 'bottom']}
         >

@@ -1,5 +1,4 @@
-import { apiClient } from '../api/client';
-import { getAccessToken } from './authService';
+import { apiAuth } from '../api/authorizedClient';
 
 export interface Perfil {
   usuario_id: string;
@@ -17,35 +16,10 @@ export interface ActualizarPerfilRequest {
   foto_perfil?: string | null;
 }
 
-export async function obtenerMiPerfil(): Promise<Perfil> {
-  const token = await getAccessToken();
+export const obtenerMiPerfil = () => apiAuth<Perfil>('/perfiles/me');
 
-  if (!token) {
-    throw new Error(
-      'No existe un token de autenticación.',
-    );
-  }
-
-  return apiClient<Perfil>('/perfiles/me', {
-    method: 'GET',
-    token,
-  });
-}
-
-export async function actualizarMiPerfil(
-  data: ActualizarPerfilRequest,
-): Promise<Perfil> {
-  const token = await getAccessToken();
-
-  if (!token) {
-    throw new Error(
-      'No existe un token de autenticación.',
-    );
-  }
-
-  return apiClient<Perfil>('/perfiles/me', {
+export const actualizarMiPerfil = (data: ActualizarPerfilRequest) =>
+  apiAuth<Perfil>('/perfiles/me', {
     method: 'PUT',
-    token,
     body: JSON.stringify(data),
   });
-}

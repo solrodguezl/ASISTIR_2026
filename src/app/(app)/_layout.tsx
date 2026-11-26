@@ -22,7 +22,7 @@ export default function AppLayout() {
   return (
     <Stack
       screenOptions={{
-        title: 'Home',
+        headerShown: false,
       }}
     />
   );

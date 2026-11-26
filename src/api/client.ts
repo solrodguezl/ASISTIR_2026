@@ -14,6 +14,7 @@ function getApiUrl(): string {
 
 interface ApiErrorResponse {
   error?: string;
+  details?: { campo?: string; mensaje?: string }[];
 }
 
 export class ApiError extends Error {
@@ -38,16 +39,25 @@ export async function apiClient<T>(
 
   const baseUrl = getApiUrl();
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    ...requestOptions,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {}),
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${baseUrl}${endpoint}`, {
+      ...requestOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+        ...(token
+          ? { Authorization: `Bearer ${token}` }
+          : {}),
+      },
+    });
+  } catch {
+    throw new ApiError(
+      `No se pudo conectar con el servidor (${baseUrl}). Verifica que el backend esté encendido y que estés en la misma red.`,
+      0,
+    );
+  }
 
   if (!response.ok) {
     let errorMessage = 'Error en la petición';
@@ -58,6 +68,14 @@ export async function apiClient<T>(
 
       if (data.error) {
         errorMessage = data.error;
+      }
+
+      // Errores de validación: muestra el detalle (ej. "La contraseña debe tener al menos 8 caracteres").
+      if (Array.isArray(data.details) && data.details.length > 0) {
+        errorMessage = data.details
+          .map((d) => d.mensaje)
+          .filter(Boolean)
+          .join(' ');
       }
     } catch {
       // La respuesta no contiene JSON.

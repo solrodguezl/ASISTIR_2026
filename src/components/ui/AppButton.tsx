@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
     ActivityIndicator,
     Pressable,
@@ -8,9 +9,10 @@ import {
     View,
     ViewStyle,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
-export type AppButtonVariant = 'primary' | 'danger';
+import { Brand } from '../../constants/brand';
+
+export type AppButtonVariant = 'primary' | 'danger' | 'outline';
 
 interface AppButtonProps extends PressableProps {
   title: string;
@@ -29,30 +31,35 @@ export function AppButton({
   icon,
   ...props
 }: AppButtonProps) {
+  const outline = variant === 'outline';
+  const textColor = outline ? Brand.navy : '#ffffff';
+
   return (
     <Pressable
       {...props}
       disabled={disabled || loading}
       style={[
         styles.base,
-        variant === 'primary' ? styles.primary : styles.danger,
+        variant === 'primary' && styles.primary,
+        variant === 'danger' && styles.danger,
+        outline && styles.outline,
         (disabled || loading) && styles.disabled,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color="#ffffff" />
+        <ActivityIndicator color={textColor} />
       ) : (
         <View style={styles.content}>
           {icon ? (
             <Ionicons
               name={icon}
               size={18}
-              color="#ffffff"
+              color={textColor}
               style={styles.icon}
             />
           ) : null}
-          <Text style={styles.text}>{title}</Text>
+          <Text style={[styles.text, { color: textColor }]}>{title}</Text>
         </View>
       )}
     </Pressable>
@@ -61,25 +68,29 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    height: 50,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
   primary: {
-    backgroundColor: '#222222',
+    backgroundColor: Brand.orange,
   },
   danger: {
     backgroundColor: '#e2594f',
+  },
+  outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: Brand.border,
   },
   disabled: {
     opacity: 0.6,
   },
   text: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   content: {
     flexDirection: 'row',

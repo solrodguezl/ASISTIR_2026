@@ -1,6 +1,6 @@
 export interface Usuario {
   id: number;
-  correo: string;
+  documento: string;
   activo: boolean;
 }
 

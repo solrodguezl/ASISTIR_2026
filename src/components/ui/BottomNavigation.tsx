@@ -1,51 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-    Pressable,
-    StyleProp,
-    StyleSheet,
-    View,
-    ViewStyle,
-} from 'react-native';
+import { router, type Href } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export type BottomNavigationRoute = '/home' | '/perfil' ;
-export type BottomNavigationIcon = 'home' | 'person';
+import { Brand } from '../../constants/brand';
+import { NIVEL_ROL, nivelDe } from '../../constants/roles';
+import { useSesion } from '../../hooks/use-sesion';
 
-export interface BottomNavigationItem {
+export type BottomNavigationRoute =
+  | '/home'
+  | '/asistencia'
+  | '/caracterizacion'
+  | '/miembros'
+  | '/perfil';
+
+interface NavItem {
   route: BottomNavigationRoute;
-  active?: boolean;
-  icon: BottomNavigationIcon;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
 }
 
-interface BottomNavigationProps {
-  items: BottomNavigationItem[];
-  onNavigate: (route: BottomNavigationRoute) => void;
-  style?: StyleProp<ViewStyle>;
+const ITEMS: NavItem[] = [
+  { route: '/home', label: 'Inicio', icon: 'home' },
+  { route: '/asistencia', label: 'Asistencia', icon: 'clipboard' },
+  { route: '/caracterizacion', label: 'Caracterización', icon: 'document-text' },
+  { route: '/miembros', label: 'Miembros', icon: 'people' },
+  { route: '/perfil', label: 'Perfil', icon: 'person' },
+];
+
+interface AppBottomNavProps {
+  active: BottomNavigationRoute;
 }
 
-export function BottomNavigation({
-  items,
-  onNavigate,
-  style,
-}: BottomNavigationProps) {
+/** Barra de navegación inferior compartida por todas las pantallas internas. */
+export function AppBottomNav({ active }: AppBottomNavProps) {
+  const { sesion } = useSesion();
+  // "Miembros" solo se muestra a DIRECTOR+ (GET /miembros ahora lo exige en el backend).
+  const nivelActual = nivelDe(sesion?.rol);
+  const items = ITEMS.filter(
+    (item) => item.route !== '/miembros' || nivelActual >= NIVEL_ROL.DIRECTOR,
+  );
+
   return (
-    <View style={[styles.container, style]}>
-      {items.map((item) => (
-        <Pressable
-          key={item.route}
-          onPress={() => onNavigate(item.route)}
-          style={[
-            styles.tab,
-            item.active && styles.tabActive,
-          ]}
-          accessibilityRole="button"
-        >
-          <Ionicons
-            name={item.icon}
-            size={22}
-            color={item.active ? '#ffffff' : '#7a7a7a'}
-          />
-        </Pressable>
-      ))}
+    <View style={styles.container}>
+      {items.map((item) => {
+        const isActive = item.route === active;
+        const color = isActive ? Brand.orange : Brand.navy;
+
+        return (
+          <Pressable
+            key={item.route}
+            style={[styles.tab, isActive && styles.tabActive]}
+            onPress={() => {
+              if (!isActive) {
+                router.replace(item.route as Href);
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+          >
+            <Ionicons name={item.icon} size={24} color={color} />
+            <Text style={[styles.label, { color }]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -53,38 +70,25 @@ export function BottomNavigation({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
     width: '100%',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 6,
+    borderTopColor: '#EEEEF1',
   },
   tab: {
-    width: 52,
-    height: 52,
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    paddingVertical: 8,
+    borderTopWidth: 3,
+    borderTopColor: 'transparent',
+    marginTop: -1,
   },
   tabActive: {
-    backgroundColor: '#666666',
-    borderColor: '#111111',
-    shadowColor: '#111111',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    borderTopColor: Brand.orange,
+  },
+  label: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
   },
 });

@@ -22,7 +22,7 @@ export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
-        title: 'Login',
+        headerShown: false,
       }}
     />
   );

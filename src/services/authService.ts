@@ -58,6 +58,15 @@ async function removeStorage(key: string): Promise<void> {
   await SecureStore.deleteItemAsync(key);
 }
 
+export async function registrar(
+  credentials: LoginRequest,
+): Promise<Usuario> {
+  return apiClient<Usuario>('/usuarios', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  });
+}
+
 export async function login(
   credentials: LoginRequest,
 ): Promise<LoginResponse> {
