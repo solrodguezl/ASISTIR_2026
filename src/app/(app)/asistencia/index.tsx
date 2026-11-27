@@ -77,7 +77,7 @@ export default function AsistenciaScreen() {
     try {
       setGuardando(true);
 
-      const nueva = await crearActividad({
+      const { datos: nueva } = await crearActividad({
         nombre: nombre.trim(),
         fecha,
         barrio: barrio || null,
@@ -196,6 +196,9 @@ export default function AsistenciaScreen() {
                 {actividad.total_asistentes}{' '}
                 {actividad.total_asistentes === 1 ? 'asistente' : 'asistentes'}
               </Text>
+              {actividad.pendiente ? (
+                <Text style={styles.itemPendiente}>Guardada en el teléfono · se enviará al conectar</Text>
+              ) : null}
             </View>
 
             <Ionicons name="chevron-forward" size={22} color={Brand.navy} />
@@ -291,6 +294,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Brand.green,
     marginTop: 4,
+  },
+
+  itemPendiente: {
+    fontSize: 13,
+    color: Brand.orangeDark,
+    marginTop: 2,
   },
 
   loader: {

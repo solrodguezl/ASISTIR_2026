@@ -7,6 +7,9 @@ import {
 
 
 import { AuthProvider } from '@/context/AuthContext';
+// Registra la tarea de sincronización en segundo plano al cargar la app
+// (TaskManager.defineTask tiene que correr en el ámbito global).
+import '@/offline/backgroundSync';
 
 SplashScreen.preventAutoHideAsync();
 
