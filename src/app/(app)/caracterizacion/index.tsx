@@ -433,7 +433,7 @@ export default function CaracterizacionScreen() {
     try {
       setGuardando(estado);
 
-      const resultado = await guardarCaracterizacion({
+      const { datos: resultado, enCola } = await guardarCaracterizacion({
         documento: normalizarDocumento(documento),
         nombres: nombres.trim(),
         tipoDocumento: tipoDocumento || null,
@@ -450,8 +450,11 @@ export default function CaracterizacionScreen() {
       setEstadoPrevio(resultado.formulario.estado);
       setMensaje({
         tipo: 'ok',
-        texto:
-          estado === 'completo'
+        texto: enCola
+          ? estado === 'completo'
+            ? `Caracterización completa guardada en el teléfono para ${nombres.trim()}. Se enviará cuando haya conexión.`
+            : 'Capítulo guardado en el teléfono. Se enviará cuando haya conexión.'
+          : estado === 'completo'
             ? `Caracterización completa guardada para ${nombres.trim()}.`
             : 'Capítulo guardado.',
       });

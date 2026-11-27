@@ -26,6 +26,7 @@ import {
   type ActividadDetalle,
   type Catalogos,
 } from '../../../services/asistenciaService';
+import { useEstadoSync } from '../../../hooks/use-estado-sync';
 
 export default function RegistrarAsistenciaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -48,6 +49,7 @@ export default function RegistrarAsistenciaScreen() {
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
   const ultimaBusqueda = useRef('');
+  const { enLinea } = useEstadoSync();
 
   const cargarActividad = async () => {
     if (!id) return;
@@ -160,7 +162,7 @@ export default function RegistrarAsistenciaScreen() {
     try {
       setGuardando(true);
 
-      await registrarAsistencia(id, {
+      const { enCola } = await registrarAsistencia(id, {
         documento: doc,
         nombres: nombres.trim(),
         etnia,
@@ -171,7 +173,9 @@ export default function RegistrarAsistenciaScreen() {
 
       setMensaje({
         tipo: 'ok',
-        texto: `Asistencia guardada: ${nombres.trim()}.`,
+        texto: enCola
+          ? `Asistencia guardada en el teléfono: ${nombres.trim()}. Se enviará cuando haya conexión.`
+          : `Asistencia guardada: ${nombres.trim()}.`,
       });
       limpiar();
       await cargarActividad();
@@ -222,10 +226,14 @@ export default function RegistrarAsistenciaScreen() {
 
         <Text style={styles.title}>{actividad.nombre}</Text>
 
-        <View style={styles.badge}>
-          <Ionicons name="checkmark-circle" size={20} color={Brand.green} />
+        <View style={[styles.badge, !enLinea && styles.badgeOffline]}>
+          <Ionicons
+            name={enLinea ? 'checkmark-circle' : 'cloud-offline'}
+            size={20}
+            color={enLinea ? Brand.green : Brand.orangeDark}
+          />
           <Text style={styles.badgeText}>
-            Conectado · {actividad.total_asistentes}{' '}
+            {enLinea ? 'Conectado' : 'Sin conexión'} · {actividad.total_asistentes}{' '}
             {actividad.total_asistentes === 1 ? 'asistente' : 'asistentes'}
           </Text>
         </View>
@@ -338,6 +346,15 @@ export default function RegistrarAsistenciaScreen() {
             {actividad.asistentes.slice(0, 10).map((a) => (
               <View key={a.id_asistencia} style={styles.attendee}>
                 <Text style={styles.attendeeName}>{a.nombres}</Text>
+                {a.pendiente ? (
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={18}
+                    color={Brand.orangeDark}
+                    accessibilityLabel="Pendiente de envío"
+                    style={styles.attendeePendiente}
+                  />
+                ) : null}
                 <Text style={styles.attendeeDoc}>{a.documento}</Text>
               </View>
             ))}
@@ -409,6 +426,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     marginBottom: 16,
+  },
+
+  badgeOffline: {
+    backgroundColor: Brand.orangeSoft,
   },
 
   badgeText: {
@@ -492,6 +513,10 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Brand.navy,
     fontWeight: '600',
+  },
+
+  attendeePendiente: {
+    marginRight: 8,
   },
 
   attendeeDoc: {

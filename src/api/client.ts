@@ -29,20 +29,35 @@ export class ApiError extends Error {
 
 interface RequestOptions extends RequestInit {
   token?: string;
+  /** Si el servidor no responde en este tiempo se trata como "sin conexión" (status 0). */
+  timeoutMs?: number;
 }
+
+// Con señal débil fetch puede quedarse colgado minutos; así la app pasa a
+// guardar en el teléfono. Alcanza para que Render despierte el servidor.
+const TIMEOUT_POR_DEFECTO_MS = 45_000;
 
 export async function apiClient<T>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { token, headers, ...requestOptions } = options;
+  const {
+    token,
+    headers,
+    timeoutMs = TIMEOUT_POR_DEFECTO_MS,
+    ...requestOptions
+  } = options;
 
   const baseUrl = getApiUrl();
 
   let response: Response;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     response = await fetch(`${baseUrl}${endpoint}`, {
+      signal: controller.signal,
       ...requestOptions,
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +72,8 @@ export async function apiClient<T>(
       `No se pudo conectar con el servidor (${baseUrl}). Verifica que el backend esté encendido y que estés en la misma red.`,
       0,
     );
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!response.ok) {

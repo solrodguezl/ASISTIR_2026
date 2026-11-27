@@ -1,4 +1,9 @@
+import { ApiError } from '../api/client';
 import { apiAuth } from '../api/authorizedClient';
+import { conCache, guardarCache, leerCache } from '../offline/cache';
+import { escribirOEncolar, nuevoId, type Guardado } from '../offline/escritura';
+import { listarOperaciones } from '../offline/outbox';
+import { esErrorDeRed } from '../offline/red';
 
 export interface OpcionDss {
   id_opcion: string;
@@ -139,21 +144,132 @@ export interface HogarEncontrado {
   id_vivienda: string | null;
 }
 
+// --- Copia local de la caracterización de cada persona ---
+//
+// Se guarda la última versión conocida (la del servidor más lo guardado en
+// este teléfono) para poder reabrir el formulario sin conexión y continuar
+// donde se quedó. Mientras haya capítulos de esa persona en la cola, esta copia
+// es más nueva que la del servidor y es la que se muestra.
+
+const claveCaracterizacion = (documento: string) => `caracterizacion:${documento}`;
+
+async function hayPendientesDe(documento: string) {
+  return (await listarOperaciones()).some(
+    (o) => o.tipo === 'GUARDAR_CARACTERIZACION' && o.body.documento === documento,
+  );
+}
+
+async function actualizarCopiaLocal(
+  data: GuardarCaracterizacionRequest,
+  guardado: GuardarCaracterizacionResponse | null,
+): Promise<GuardarCaracterizacionResponse> {
+  const previa = await leerCache<PersonaConFormulario>(claveCaracterizacion(data.documento));
+  const ahora = new Date().toISOString();
+
+  const respuestas = new Map<string, RespuestaGuardada>();
+  for (const r of previa?.formulario?.respuestas ?? []) respuestas.set(r.id_pregunta, r);
+  for (const r of data.respuestas) {
+    respuestas.set(r.idPregunta, {
+      id_pregunta: r.idPregunta,
+      id_opcion: r.idOpcion ?? null,
+      valor_respuesta: r.valorRespuesta ?? null,
+    });
+  }
+
+  const persona: PersonaCaracterizacion = guardado?.persona ?? {
+    id_persona: previa?.persona.id_persona ?? '',
+    documento: data.documento,
+    tipo_documento: data.tipoDocumento ?? null,
+    nombres: data.nombres,
+    etnia: data.etnia ?? null,
+    fecha_nacimiento: data.fechaNacimiento ?? null,
+    edad: data.edad ?? null,
+    genero: data.genero ?? null,
+    barrio: data.barrio,
+  };
+
+  const formulario = guardado?.formulario ?? {
+    id_formulario: previa?.formulario?.id_formulario ?? 'local',
+    estado: data.estado,
+    fecha_diligenciamiento:
+      data.estado === 'completo' ? ahora.slice(0, 10) : previa?.formulario?.fecha_diligenciamiento ?? null,
+    fecha_ultima_actualizacion: ahora,
+  };
+
+  await guardarCache(claveCaracterizacion(data.documento), {
+    persona,
+    formulario: { ...formulario, respuestas: [...respuestas.values()] },
+  } satisfies PersonaConFormulario);
+
+  return (
+    guardado ?? {
+      persona,
+      formulario,
+      respuestasGuardadas: data.respuestas.length,
+      hogar: null,
+    }
+  );
+}
+
+// --- API ---
+
 export const obtenerCatalogoCaracterizacion = () =>
-  apiAuth<CategoriaDss[]>('/caracterizacion/catalogo');
+  conCache('catalogo-caracterizacion', () => apiAuth<CategoriaDss[]>('/caracterizacion/catalogo'));
 
-export const buscarPersonaCaracterizacion = (documento: string) =>
-  apiAuth<PersonaConFormulario>(
-    `/caracterizacion/personas/${encodeURIComponent(documento)}`,
-  );
+export async function buscarPersonaCaracterizacion(documento: string): Promise<PersonaConFormulario> {
+  const local = await leerCache<PersonaConFormulario>(claveCaracterizacion(documento));
 
-export const buscarHogarCaracterizacion = (documento: string) =>
-  apiAuth<HogarEncontrado>(
-    `/caracterizacion/hogares/${encodeURIComponent(documento)}`,
-  );
+  if (local && (await hayPendientesDe(documento))) {
+    return local;
+  }
 
-export const guardarCaracterizacion = (data: GuardarCaracterizacionRequest) =>
-  apiAuth<GuardarCaracterizacionResponse>('/caracterizacion', {
-    method: 'POST',
-    body: JSON.stringify(data),
+  try {
+    const servidor = await apiAuth<PersonaConFormulario>(
+      `/caracterizacion/personas/${encodeURIComponent(documento)}`,
+    );
+    void guardarCache(claveCaracterizacion(documento), servidor);
+    return servidor;
+  } catch (error) {
+    if (!esErrorDeRed(error)) throw error;
+    if (local) return local;
+
+    // Sin conexión y sin copia local: se diligencia como persona nueva; al
+    // sincronizar el servidor la une por documento y continúa su borrador.
+    throw new ApiError('Persona no registrada', 404);
+  }
+}
+
+export async function buscarHogarCaracterizacion(documento: string): Promise<HogarEncontrado> {
+  try {
+    return await apiAuth<HogarEncontrado>(
+      `/caracterizacion/hogares/${encodeURIComponent(documento)}`,
+    );
+  } catch (error) {
+    if (!esErrorDeRed(error)) throw error;
+
+    throw new ApiError(
+      'Sin conexión: no se puede verificar ahora. Si dejas el documento, el hogar se vinculará automáticamente al sincronizar.',
+      0,
+    );
+  }
+}
+
+export async function guardarCaracterizacion(
+  data: GuardarCaracterizacionRequest,
+): Promise<Guardado<GuardarCaracterizacionResponse>> {
+  const id = nuevoId();
+
+  const resultado = await escribirOEncolar<GuardarCaracterizacionResponse | null>({
+    id,
+    tipo: 'GUARDAR_CARACTERIZACION',
+    endpoint: '/caracterizacion',
+    body: { ...data },
+    resumen: `Caracterización · ${data.nombres}`,
+    resultadoLocal: () => null,
   });
+
+  return {
+    datos: await actualizarCopiaLocal(data, resultado.datos),
+    enCola: resultado.enCola,
+  };
+}
